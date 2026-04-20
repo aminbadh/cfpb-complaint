@@ -1,0 +1,25 @@
+# Python environment and cache
+.venv/
+__pycache__/
+*.pyc
+
+# OS/editor artifacts
+.DS_Store
+
+# Data artifacts (keep folders, ignore generated contents)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+!data/processed/complaints_sample.csv
+!data/processed/train_features.csv
+!data/processed/test_features.csv
+
+# Jupyter artifacts
+notebooks/.ipynb_checkpoints/
+
+# Reports (track only final comparison tables)
+reports/*
+!reports/.gitkeep
+!reports/model_comparison.csv
+!reports/model_comparison_with_ensemble.csv
