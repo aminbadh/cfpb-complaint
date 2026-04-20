@@ -53,9 +53,9 @@ Leakage prevention:
 - Exclude company response fields created after resolution
 - Use only complaint intake and metadata available at receipt time
 
-## Quick Start: Fetch Data (Choose One)
+## Quick Start: Fetch Data
 
-### Option 1: Full Dataset Download (1.8 GB, slower)
+### Full Dataset Download (1.8 GB)
 If you need the complete dataset:
 
 ```bash
@@ -68,13 +68,6 @@ Or use the helper script:
 
 ```bash
 python src/download_cfpb_data.py --download
-```
-
-### Option 2: Lightweight API Sample (fallback)
-If downloading the full archive is unstable on your machine, pull a smaller JSON sample:
-
-```bash
-python src/fetch_cfpb_api.py --records 10000
 ```
 
 ## Minimal Working Structure
