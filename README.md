@@ -28,6 +28,17 @@ Documentation:
 - API docs: https://cfpb.github.io/api/ccdb/api.html
 - Current API base: https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/
 
+## Full Dataset Profile (Local Snapshot)
+
+The full dataset currently loaded in this repo is:
+- Rows: 14,636,145
+- Columns: 18
+- Compressed file size (`complaints.csv.zip`): ~1.7 GB
+- Uncompressed CSV size (`complaints.csv`): ~8.0 GB
+- Raw data directory size (`data/raw/`): ~9.7 GB
+
+These numbers were measured from the local files in this project on 2026-04-20.
+
 ## Why This Dataset
 - Public and high-volume real-world complaint data.
 - Includes text narratives for NLP.
@@ -55,7 +66,7 @@ Leakage prevention:
 
 ## Quick Start: Fetch Data
 
-### Full Dataset Download (1.8 GB)
+### Full Dataset Download (~1.7 GB zip, ~8.0 GB extracted)
 If you need the complete dataset:
 
 ```bash
@@ -96,7 +107,7 @@ Implementation is intentionally deferred until preprocessing/modeling are finali
 
 | Phase | File(s) | Status | Notes |
 |---|---|---|---|
-| Data Acquisition | `data/raw/complaints.csv` | ✓ Complete | Full 1.8GB dataset available; sampled 5K rows for efficiency |
+| Data Acquisition | `data/raw/complaints.csv` | ✓ Complete | Full dataset available (14.6M rows, 18 cols); sampled 5K rows for efficiency |
 | Sampling | `src/sample_cfpb_data.py` | ✓ Complete | Chunked reading prevents memory overload |
 | EDA | `01_data_loading_and_eda.ipynb` | ✓ Complete | Target validated, narratives available (25%), class distribution analyzed |
 | Preprocessing | `02_preprocessing.ipynb` | → Ready | Text cleaning, feature engineering, train/test split (80/20) |
