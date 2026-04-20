@@ -13,7 +13,13 @@ pip install -r requirements.txt
 ```
 
 ## Project Goal
-Build and compare multiple models to predict complaint outcomes and generate business insights from complaint narratives.
+Build a binary classifier that predicts whether a complaint will result in monetary relief, using complaint-time information (narrative + structured intake fields).
+
+Specific deliverables:
+- A clean, leakage-safe training dataset and reproducible preprocessing pipeline
+- Multiple baseline and advanced models with comparable evaluation
+- A final champion or ensemble model selected by business-relevant metrics (F1, PR-AUC, recall)
+- Actionable business insights: where monetary relief risk is concentrated by product/issue/channel/time
 
 ## Official Data Sources
 Primary source page:
@@ -97,23 +103,23 @@ cfpb-complaint/
    #   streamlit_app.py
 ```
 
+## File Responsibilities (Single Source of Truth)
+
+- `notebooks/01_data_loading_and_eda.ipynb`: Data loading, quality checks, schema review, and exploratory visuals only.
+- `notebooks/02_preprocessing.ipynb`: Authoritative target construction and leakage-safe feature engineering.
+- `notebooks/03_modeling.ipynb`: Model training, comparison, and ensemble evaluation using preprocessed outputs.
+- `src/download_cfpb_data.py`: Download and extract official CFPB data into `data/raw/`.
+- `src/sample_cfpb_data.py`: Create memory-safe working samples from large raw CSV files.
+
+Boundary rule:
+- If a step changes labels/features used for training, it belongs in `02_preprocessing.ipynb`.
+- If a step is only descriptive/exploratory, it belongs in `01_data_loading_and_eda.ipynb`.
+
 ## Planned Next Step (GUI)
 
 A **Streamlit GUI** is planned for a later phase to test trained models live (single complaint prediction + batch testing), compare outputs, and present key metrics interactively.
 
 Implementation is intentionally deferred until preprocessing/modeling are finalized.
-
-## Project Status
-
-| Phase | File(s) | Status | Notes |
-|---|---|---|---|
-| Data Acquisition | `data/raw/complaints.csv` | ✓ Complete | Full dataset available (14.6M rows, 18 cols); sampled 5K rows for efficiency |
-| Sampling | `src/sample_cfpb_data.py` | ✓ Complete | Chunked reading prevents memory overload |
-| EDA | `01_data_loading_and_eda.ipynb` | ✓ Complete | Target validated, narratives available (25%), class distribution analyzed |
-| Preprocessing | `02_preprocessing.ipynb` | → Ready | Text cleaning, feature engineering, train/test split (80/20) |
-| Modeling | `03_modeling.ipynb` | → Ready | 5 model families: Logistic Regression, Naive Bayes, KNN, Random Forest, ANN |
-| Ensemble | `03_modeling.ipynb` | → Ready | Soft voting classifier combines 5 models |
-| Report | `reports/` | → Template | Model comparison tables, metrics, visualizations |
 
 ## Models Included
 
