@@ -4,11 +4,16 @@ numbersections: true
 fontsize: 11pt
 linestretch: 1.2
 geometry: a4paper,margin=2.2cm
+fig-pos: H
 header-includes:
   - |
     \usepackage{setspace}
   - |
     \usepackage{titlesec}
+  - |
+    \usepackage{float}
+  - |
+    \usepackage{placeins}
   - |
     \setlength{\parskip}{6pt}
     \setlength{\parindent}{0pt}
@@ -52,7 +57,7 @@ The dataset comes from the U.S. Consumer Financial Protection Bureau (CFPB). It 
 
 - Source: CFPB Consumer Complaint Database.
 - Official page: https://www.consumerfinance.gov/data-research/consumer-complaints/
-- Direct file used as full raw input in this project: data/raw/complaints.csv.
+- Full raw input can be downloaded via the project helper and stored under `data/raw/` when needed for large-scale runs.
 - Because the full file is very large, we created and used a memory-safe working sample for modeling: data/processed/complaints_sample.csv.
 
 Local snapshot (as documented in the project README on 2026-04-20):
@@ -81,7 +86,7 @@ Main variables used in EDA and modeling include:
 - Time variables: date_received (and derived temporal features).
 - Target construction fields: company_response_to_consumer (used to derive the label, then excluded from predictor set for leakage-safe modeling).
 
-Data handling note: because the full dataset in data/raw/complaints.csv is too large for efficient iterative experimentation on a local machine, we generated a representative sample (data/processed/complaints_sample.csv) and used that sample throughout preprocessing and model development.
+Data handling note: because the full raw dataset is too large for efficient iterative experimentation on a local machine, we generated a representative sample (data/processed/complaints_sample.csv) and used that sample throughout preprocessing and model development.
 
 # Problem Statement
 
@@ -111,29 +116,122 @@ To preserve real-world validity, predictors are restricted to complaint-time inf
 
 # Data Preparation
 
-## Missing Values
-Missing values were handled according to variable type and modeling role. For text, missing complaint narratives were converted to empty strings so every observation could be processed consistently by text cleaning and vectorization steps. For numeric fields, missing values were imputed conservatively (for example with zeros for engineered count-like features where zero has a meaningful baseline). For categorical fields, missing values were retained as explicit categories where appropriate during encoding so missingness information was not silently discarded. This strategy avoids unnecessary row loss, keeps preprocessing deterministic, and is computationally safe on large samples.
+## Preparation Workflow Across Notebook 1 and Notebook 2
+Data preparation was intentionally split into two stages:
 
-## Outliers and Quality Checks
-Quality checks focused on label validity, missingness patterns, and basic distribution sanity checks rather than aggressive outlier deletion. We first reviewed the response-status distribution and identified that several statuses were unresolved or ambiguous from a monetary-relief perspective. Because the project objective is supervised prediction of monetary relief, label clarity was prioritized over maximizing row count. We also checked narrative availability and feature completeness to confirm that model inputs remained usable after filtering.
+- Notebook 1 (Data Loading + EDA): profile data quality, inspect missingness, and validate response-policy assumptions before modeling transformations.
+- Notebook 2 (Preprocessing): implement the authoritative target-construction policy, clean and engineer features, enforce leakage boundaries, and export train/test-ready datasets.
 
-## Label Definition and Eligibility Policy
-The target is intentionally strict to reduce label noise:
+This separation keeps exploratory diagnostics descriptive while keeping modeling inputs deterministic and reproducible.
 
-- Positive class (1): Closed with monetary relief.
-- Negative class (0): Closed with explanation, Closed with non-monetary relief, Closed without relief, and Closed.
-- Excluded from supervised labeling: unresolved or ambiguous statuses such as In progress, Untimely response, missing response, and other unclear variants (for example Closed with relief).
+## Stage 1: EDA-Driven Preparation Decisions (Notebook 1)
+Notebook 1 established the practical constraints that informed preprocessing:
 
-This rule ensures that class 0 means a clearly closed non-monetary outcome, rather than a mixture of unresolved and resolved cases. The trade-off is fewer training rows, but substantially cleaner supervision, which is more important in an already imbalanced task.
+- Sample-based workflow for memory safety and faster iteration on local hardware.
+- High missingness in some fields (for example `Consumer complaint narrative` at about 73.8% missing in the working sample), indicating a need for robust text-presence handling.
+- Strong class imbalance in the monetary-relief outcome proxy, indicating that downstream evaluation must go beyond accuracy.
+- Clear evidence that some response statuses are unresolved or ambiguous and should not be used as supervised labels.
 
-## Feature Transformations
-Narrative text was cleaned with a reproducible pipeline: lowercasing, URL removal, email removal, repeated redaction token cleanup, and whitespace normalization. We engineered narrative-length and narrative-presence indicators to capture useful signal even when text quality varies. Date fields were parsed into temporal features (year, month, quarter, and processing-delay proxies) to capture seasonality and operational timing effects.
+Notebook 1 also produced preparation-oriented artifacts in `reports/`, including:
 
-## Encoding and Scaling
-Structured categorical fields were one-hot encoded to support linear and tree-based learners without imposing ordinal assumptions. Text features were represented with TF-IDF for sparse high-dimensional signal extraction. For distance-sensitive models (for example KNN), dimensionality reduction and compatible scaling were used in the modeling notebook to keep computation stable and reduce noise from sparse text spaces.
+- `eda_label_policy_summary.csv`
+- `eda_missingness_by_proxy.csv`
+- `eda_variable_preparation_summary.csv`
 
-## Feature Selection and Leakage Control
-Leakage prevention was a hard constraint. Any post-resolution field, especially Company response to consumer, was used only to construct the target and then excluded from predictors. Models were trained only on complaint-time information (narrative, product/issue taxonomy, channel, geography, and intake-time-derived temporal features). This preserves real-world deployability because the same information is available at prediction time.
+These artifacts were used as input checks before final preprocessing.
+
+![Distribution of response-policy groups in the working sample, showing why unresolved or ambiguous outcomes were excluded before supervised training.](assets/data_prep_label_policy.png)
+
+## Stage 2: Authoritative Preprocessing (Notebook 2)
+Notebook 2 converted EDA findings into the final supervised learning dataset.
+
+### Target Construction and Eligibility Filter
+The target was created from `Company response to consumer` using a strict policy:
+
+- Positive class (1): `Closed with monetary relief`.
+- Negative class (0): clearly closed non-monetary outcomes (`Closed with explanation`, `Closed with non-monetary relief`, `Closed without relief`, and `Closed`).
+- Excluded: unresolved or ambiguous outcomes (for example `In progress`, `Untimely response`, and `Closed with relief`).
+
+From the sampled dataset, this policy yielded:
+
+- 48,499 rows retained for supervised modeling.
+- Monetary-relief positive rate of 1.3856%.
+
+This filter reduces label noise at the cost of sample size, which is appropriate for a high-stakes imbalanced classification task.
+
+### Text Cleaning and Narrative Features
+Complaint narratives were transformed with a deterministic cleaning function:
+
+- lowercase normalization,
+- URL removal,
+- email removal,
+- cleanup of repeated redaction tokens,
+- whitespace normalization.
+
+From the cleaned text, two structured features were engineered:
+
+- `narrative_length_raw` and capped `narrative_length` (99th percentile cap = 3138.22),
+- `has_narrative` indicator (binary).
+
+The percentile cap provides robust outlier control without deleting observations.
+
+### Temporal Feature Engineering
+Date fields were parsed and transformed into complaint-time features:
+
+- `year_received`,
+- `month_received`,
+- `quarter_received`,
+- `days_to_send` (from `Date received` to `Date sent to company`).
+
+Missing temporal derivatives were imputed with zero only at the numeric feature assembly stage to maintain a complete matrix.
+
+### Categorical Encoding and Matrix Assembly
+Selected categorical predictors were one-hot encoded:
+
+- `Product`,
+- `Issue`,
+- `State`,
+- `Submitted via`.
+
+The final preprocessing output before model-specific text vectorization contained:
+
+- 250 total features,
+- 243 one-hot categorical columns,
+- 6 numeric/engineered columns,
+- 1 cleaned text field (`narrative_clean`) to be vectorized in Notebook 3.
+
+### Missing-Value Handling
+Missing-value treatment followed feature semantics:
+
+- Text: missing narratives converted to empty strings.
+- Numeric engineered fields: filled with zeros where needed for matrix completeness.
+- Encoded categorical indicators: naturally represented as zeros after one-hot encoding.
+
+In the final assembled matrix, the tracked top features report 0% missingness in preprocessing outputs.
+
+![Top variables by missingness in the working sample. This motivated robust text-missing handling and selective feature inclusion.](assets/data_prep_missingness_top10.png)
+
+### Leakage Control
+Leakage prevention was enforced as a hard rule:
+
+- `Company response to consumer` was used only for target construction,
+- target-related fields were excluded from predictors.
+
+Notebook 2 validation reported `predictor_leakage_columns_found = 0`, confirming no direct leakage columns in `X`.
+
+## Exported Artifacts for Modeling
+Notebook 2 exported all modeling inputs and documentation artifacts:
+
+- `data/processed/train_features.csv`
+- `data/processed/test_features.csv`
+- `reports/preprocessing_summary.csv`
+- `reports/feature_dictionary.csv`
+
+The train/test split was stratified (80/20) to preserve class imbalance structure for fair downstream model comparison.
+
+![Monthly complaint volume trend for eligible closed outcomes, included to document temporal variation considered during preparation.](assets/data_prep_monthly_volume.png)
+
+\FloatBarrier
 
 # Methods and Analysis
 
