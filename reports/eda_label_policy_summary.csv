@@ -1,0 +1,9 @@
+raw_response,policy_group,count,pct_of_sample
+Closed with explanation,negative_non_monetary,30033,60.066
+Closed with non-monetary relief,negative_non_monetary,17659,35.318
+In progress,excluded_ambiguous_or_unresolved,1398,2.796
+Closed with monetary relief,positive_monetary,672,1.344
+Untimely response,excluded_ambiguous_or_unresolved,91,0.182
+Closed without relief,negative_non_monetary,68,0.136
+Closed,negative_non_monetary,67,0.134
+Closed with relief,excluded_ambiguous_or_unresolved,12,0.024

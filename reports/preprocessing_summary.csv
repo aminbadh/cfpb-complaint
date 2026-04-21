@@ -1,0 +1,28 @@
+metric,value
+rows_after_target_filter,48499.0
+positive_rate_pct,1.3856
+feature_count,250.0
+categorical_encoded_columns,243.0
+numeric_feature_count,6.0
+narrative_length_cap_p99,3138.22
+predictor_leakage_columns_found,0.0
+missing_pct::narrative_length,0.0
+missing_pct::has_narrative,0.0
+missing_pct::year_received,0.0
+missing_pct::month_received,0.0
+missing_pct::quarter_received,0.0
+missing_pct::days_to_send,0.0
+missing_pct::Product_Bank account or service,0.0
+missing_pct::Product_Checking or savings account,0.0
+missing_pct::Product_Consumer Loan,0.0
+missing_pct::Product_Credit card,0.0
+missing_pct::Product_Credit card or prepaid card,0.0
+missing_pct::Product_Credit reporting,0.0
+missing_pct::Product_Credit reporting or other personal consumer reports,0.0
+"missing_pct::Product_Credit reporting, credit repair services, or other personal consumer reports",0.0
+missing_pct::Product_Debt collection,0.0
+missing_pct::Product_Debt or credit management,0.0
+"missing_pct::Product_Money transfer, virtual currency, or money service",0.0
+missing_pct::Product_Money transfers,0.0
+missing_pct::Product_Mortgage,0.0
+missing_pct::Product_Other financial service,0.0

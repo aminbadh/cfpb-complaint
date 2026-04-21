@@ -86,33 +86,54 @@ Data handling note: because the full dataset in data/raw/complaints.csv is too l
 # Problem Statement
 
 ## Problem to Study
-State the analytical problem clearly.
+Financial institutions and regulators receive a very large volume of consumer complaints, but only a subset of cases ends with monetary relief for the consumer. The core problem is to identify, as early as possible, which complaints are more likely to lead to monetary relief using only information available at complaint time.
+
+This is a pressing business problem for companies because slow or inaccurate complaint triage increases regulatory exposure, operational costs, customer dissatisfaction, and reputational risk. In practice, firms must quickly decide which complaints need urgent escalation versus standard handling. A reliable predictive signal can improve response prioritization, shorten time-to-resolution for high-risk cases, and support more consistent consumer-outcome management.
 
 ## Objective
-Define the objective of the analysis.
+The objective of this analysis is to build and evaluate a leakage-safe binary classification model that predicts whether a CFPB complaint will end with monetary relief. We aim to compare multiple modeling approaches, assess class-imbalance-aware performance metrics, and identify a practical decision threshold for operational use.
 
 ## Research Questions
-List the main research questions.
+The main research questions are:
+
+- Can complaint-time features (text narrative, product/issue categories, channel, geography, and time features) predict monetary relief outcomes with useful accuracy?
+- Which model family provides the best trade-off between precision, recall, and overall robustness for this imbalanced classification task?
+- How should the decision threshold be adjusted to match operational priorities, such as capturing more potential monetary-relief cases versus reducing false alarms?
+- Which complaint attributes appear most informative for distinguishing likely monetary-relief outcomes?
 
 ## Target Variable
-Explain the binary target design (monetary relief vs no monetary relief) and leakage-safe constraints.
+The target variable is a binary label derived from the complaint resolution outcome:
+
+- 1: complaint ended with monetary relief.
+- 0: complaint ended without monetary relief.
+
+To preserve real-world validity, predictors are restricted to complaint-time information only. Fields that reveal or are strongly tied to post-resolution outcomes are excluded from the feature set used at inference time.
 
 # Data Preparation
 
 ## Missing Values
-Explain handling strategy and justification.
+Missing values were handled according to variable type and modeling role. For text, missing complaint narratives were converted to empty strings so every observation could be processed consistently by text cleaning and vectorization steps. For numeric fields, missing values were imputed conservatively (for example with zeros for engineered count-like features where zero has a meaningful baseline). For categorical fields, missing values were retained as explicit categories where appropriate during encoding so missingness information was not silently discarded. This strategy avoids unnecessary row loss, keeps preprocessing deterministic, and is computationally safe on large samples.
 
 ## Outliers and Quality Checks
-Describe checks and decisions.
+Quality checks focused on label validity, missingness patterns, and basic distribution sanity checks rather than aggressive outlier deletion. We first reviewed the response-status distribution and identified that several statuses were unresolved or ambiguous from a monetary-relief perspective. Because the project objective is supervised prediction of monetary relief, label clarity was prioritized over maximizing row count. We also checked narrative availability and feature completeness to confirm that model inputs remained usable after filtering.
+
+## Label Definition and Eligibility Policy
+The target is intentionally strict to reduce label noise:
+
+- Positive class (1): Closed with monetary relief.
+- Negative class (0): Closed with explanation, Closed with non-monetary relief, Closed without relief, and Closed.
+- Excluded from supervised labeling: unresolved or ambiguous statuses such as In progress, Untimely response, missing response, and other unclear variants (for example Closed with relief).
+
+This rule ensures that class 0 means a clearly closed non-monetary outcome, rather than a mixture of unresolved and resolved cases. The trade-off is fewer training rows, but substantially cleaner supervision, which is more important in an already imbalanced task.
 
 ## Feature Transformations
-Detail text cleaning, vectorization, and any transformations.
+Narrative text was cleaned with a reproducible pipeline: lowercasing, URL removal, email removal, repeated redaction token cleanup, and whitespace normalization. We engineered narrative-length and narrative-presence indicators to capture useful signal even when text quality varies. Date fields were parsed into temporal features (year, month, quarter, and processing-delay proxies) to capture seasonality and operational timing effects.
 
 ## Encoding and Scaling
-Document categorical encoding and scaling choices.
+Structured categorical fields were one-hot encoded to support linear and tree-based learners without imposing ordinal assumptions. Text features were represented with TF-IDF for sparse high-dimensional signal extraction. For distance-sensitive models (for example KNN), dimensionality reduction and compatible scaling were used in the modeling notebook to keep computation stable and reduce noise from sparse text spaces.
 
 ## Feature Selection and Leakage Control
-List excluded post-resolution fields and explain why.
+Leakage prevention was a hard constraint. Any post-resolution field, especially Company response to consumer, was used only to construct the target and then excluded from predictors. Models were trained only on complaint-time information (narrative, product/issue taxonomy, channel, geography, and intake-time-derived temporal features). This preserves real-world deployability because the same information is available at prediction time.
 
 # Methods and Analysis
 
