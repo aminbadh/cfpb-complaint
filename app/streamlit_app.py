@@ -16,6 +16,7 @@ import pandas as pd
 import seaborn as sns
 import streamlit as st
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -30,6 +31,9 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -106,6 +110,15 @@ def run_experiment(
     rf_min_samples_leaf: int,
     rf_class_weight: str,
     rf_text_feature_cap: int,
+    nb_alpha: float,
+    knn_neighbors: int,
+    knn_weights: str,
+    svd_components: int,
+    ann_h1: int,
+    ann_h2: int,
+    ann_h3: int,
+    ann_max_iter: int,
+    ann_learning_rate_init: float,
 ) -> ExperimentResult:
     start = time.time()
     train_df, test_df = load_data()
@@ -134,15 +147,38 @@ def run_experiment(
     class_weight_lr = None if lr_class_weight == "None" else "balanced"
     class_weight_rf = None if rf_class_weight == "None" else "balanced"
 
+    text_cap = max(10, min(rf_text_feature_cap, tfidf_max_features))
+    x_train_combined = None
+    x_test_combined = None
+
+    def get_combined_features():
+        nonlocal x_train_combined, x_test_combined
+        if x_train_combined is None or x_test_combined is None:
+            x_train_combined = np.hstack([x_train_struct_scaled, x_train_tfidf.toarray()[:, :text_cap]])
+            x_test_combined = np.hstack([x_test_struct_scaled, x_test_tfidf.toarray()[:, :text_cap]])
+        return x_train_combined, x_test_combined
+
     if model_name == "Logistic Regression":
         model = LogisticRegression(C=lr_c, class_weight=class_weight_lr, max_iter=1000, random_state=42)
         model.fit(x_train_tfidf, y_train)
         y_proba = model.predict_proba(x_test_tfidf)[:, 1]
 
+    elif model_name == "Naive Bayes":
+        model = MultinomialNB(alpha=nb_alpha)
+        model.fit(x_train_tfidf, y_train)
+        y_proba = model.predict_proba(x_test_tfidf)[:, 1]
+
+    elif model_name == "KNN":
+        max_svd = max(2, min(svd_components, x_train_tfidf.shape[1] - 1))
+        svd = TruncatedSVD(n_components=max_svd, random_state=42)
+        x_train_svd = svd.fit_transform(x_train_tfidf)
+        x_test_svd = svd.transform(x_test_tfidf)
+        model = KNeighborsClassifier(n_neighbors=knn_neighbors, weights=knn_weights, n_jobs=-1)
+        model.fit(x_train_svd, y_train)
+        y_proba = model.predict_proba(x_test_svd)[:, 1]
+
     elif model_name == "Random Forest":
-        text_cap = max(10, min(rf_text_feature_cap, tfidf_max_features))
-        x_train_combined = np.hstack([x_train_struct_scaled, x_train_tfidf.toarray()[:, :text_cap]])
-        x_test_combined = np.hstack([x_test_struct_scaled, x_test_tfidf.toarray()[:, :text_cap]])
+        x_train_combined, x_test_combined = get_combined_features()
 
         model = RandomForestClassifier(
             n_estimators=rf_n_estimators,
@@ -155,12 +191,32 @@ def run_experiment(
         model.fit(x_train_combined, y_train)
         y_proba = model.predict_proba(x_test_combined)[:, 1]
 
+    elif model_name == "Neural Network (ANN)":
+        x_train_combined, x_test_combined = get_combined_features()
+        model = MLPClassifier(
+            hidden_layer_sizes=(ann_h1, ann_h2, ann_h3),
+            activation="relu",
+            solver="adam",
+            max_iter=ann_max_iter,
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.1,
+            learning_rate_init=ann_learning_rate_init,
+        )
+        model.fit(x_train_combined, y_train)
+        y_proba = model.predict_proba(x_test_combined)[:, 1]
+
     else:
-        text_cap = max(10, min(rf_text_feature_cap, tfidf_max_features))
-        x_train_combined = np.hstack([x_train_struct_scaled, x_train_tfidf.toarray()[:, :text_cap]])
-        x_test_combined = np.hstack([x_test_struct_scaled, x_test_tfidf.toarray()[:, :text_cap]])
+        # Voting Ensemble (5-model avg) to match notebook setup.
+        x_train_combined, x_test_combined = get_combined_features()
+        max_svd = max(2, min(svd_components, x_train_tfidf.shape[1] - 1))
+        svd = TruncatedSVD(n_components=max_svd, random_state=42)
+        x_train_svd = svd.fit_transform(x_train_tfidf)
+        x_test_svd = svd.transform(x_test_tfidf)
 
         lr = LogisticRegression(C=lr_c, class_weight=class_weight_lr, max_iter=1000, random_state=42)
+        nb = MultinomialNB(alpha=nb_alpha)
+        knn = KNeighborsClassifier(n_neighbors=knn_neighbors, weights=knn_weights, n_jobs=-1)
         rf = RandomForestClassifier(
             n_estimators=rf_n_estimators,
             max_depth=rf_max_depth if rf_max_depth > 0 else None,
@@ -169,10 +225,30 @@ def run_experiment(
             random_state=42,
             n_jobs=-1,
         )
+        ann = MLPClassifier(
+            hidden_layer_sizes=(ann_h1, ann_h2, ann_h3),
+            activation="relu",
+            solver="adam",
+            max_iter=ann_max_iter,
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.1,
+            learning_rate_init=ann_learning_rate_init,
+        )
 
         lr.fit(x_train_tfidf, y_train)
+        nb.fit(x_train_tfidf, y_train)
+        knn.fit(x_train_svd, y_train)
         rf.fit(x_train_combined, y_train)
-        y_proba = 0.5 * lr.predict_proba(x_test_tfidf)[:, 1] + 0.5 * rf.predict_proba(x_test_combined)[:, 1]
+        ann.fit(x_train_combined, y_train)
+
+        y_proba = (
+            lr.predict_proba(x_test_tfidf)[:, 1]
+            + nb.predict_proba(x_test_tfidf)[:, 1]
+            + knn.predict_proba(x_test_svd)[:, 1]
+            + rf.predict_proba(x_test_combined)[:, 1]
+            + ann.predict_proba(x_test_combined)[:, 1]
+        ) / 5.0
 
     metrics = evaluate_probs(y_test, y_proba, threshold)
 
@@ -246,8 +322,15 @@ def main() -> None:
         st.header("Controls")
         model_name = st.selectbox(
             "Model",
-            ["Logistic Regression", "Random Forest", "Voting Ensemble (LR + RF)"],
-            index=1,
+            [
+                "Logistic Regression",
+                "Naive Bayes",
+                "KNN",
+                "Random Forest",
+                "Neural Network (ANN)",
+                "Voting Ensemble (5-model avg)",
+            ],
+            index=3,
         )
         sample_frac = st.slider("Train/Test sample fraction", 0.10, 1.00, 0.40, 0.05)
         threshold = st.slider("Decision threshold", 0.10, 0.90, 0.10, 0.05)
@@ -257,18 +340,67 @@ def main() -> None:
         st.subheader("Shared Text Features")
         tfidf_max_features = st.slider("TF-IDF max features", 100, 1000, 300, 50)
 
-        st.markdown("---")
-        st.subheader("Logistic Regression")
-        lr_c = st.select_slider("C (inverse regularization)", options=[0.1, 0.3, 1.0, 3.0, 10.0], value=1.0)
-        lr_class_weight = st.selectbox("LR class_weight", ["None", "balanced"], index=1)
+        # Default values keep run_experiment signature stable for caching.
+        lr_c = 1.0
+        lr_class_weight = "balanced"
+        nb_alpha = 0.1
+        knn_neighbors = 5
+        knn_weights = "uniform"
+        svd_components = 50
+        rf_n_estimators = 150
+        rf_max_depth = 15
+        rf_min_samples_leaf = 1
+        rf_class_weight = "balanced"
+        rf_text_feature_cap = 100
+        ann_h1 = 128
+        ann_h2 = 64
+        ann_h3 = 32
+        ann_max_iter = 400
+        ann_learning_rate_init = 0.001
 
-        st.markdown("---")
-        st.subheader("Random Forest")
-        rf_n_estimators = st.slider("n_estimators", 50, 400, 150, 25)
-        rf_max_depth = st.slider("max_depth (0=None)", 0, 30, 15, 1)
-        rf_min_samples_leaf = st.slider("min_samples_leaf", 1, 10, 1, 1)
-        rf_class_weight = st.selectbox("RF class_weight", ["None", "balanced"], index=1)
-        rf_text_feature_cap = st.slider("Text features added to RF", 20, 300, 100, 10)
+        if model_name in ["Logistic Regression", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("Logistic Regression")
+            lr_c = st.select_slider("C (inverse regularization)", options=[0.1, 0.3, 1.0, 3.0, 10.0], value=1.0)
+            lr_class_weight = st.selectbox("LR class_weight", ["None", "balanced"], index=1)
+
+        if model_name in ["Naive Bayes", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("Naive Bayes")
+            nb_alpha = st.select_slider("alpha (smoothing)", options=[0.01, 0.05, 0.1, 0.5, 1.0], value=0.1)
+
+        if model_name in ["KNN", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("KNN")
+            knn_neighbors = st.slider("n_neighbors", 3, 21, 5, 2)
+            knn_weights = st.selectbox("weights", ["uniform", "distance"], index=0)
+            svd_components = st.slider("SVD components", 10, 120, 50, 5)
+
+        if model_name in ["Random Forest", "Neural Network (ANN)", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("Structured + Text Mix")
+            rf_text_feature_cap = st.slider("Text features added to combined models", 20, 300, 100, 10)
+
+        if model_name in ["Random Forest", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("Random Forest")
+            rf_n_estimators = st.slider("n_estimators", 50, 400, 150, 25)
+            rf_max_depth = st.slider("max_depth (0=None)", 0, 30, 15, 1)
+            rf_min_samples_leaf = st.slider("min_samples_leaf", 1, 10, 1, 1)
+            rf_class_weight = st.selectbox("RF class_weight", ["None", "balanced"], index=1)
+
+        if model_name in ["Neural Network (ANN)", "Voting Ensemble (5-model avg)"]:
+            st.markdown("---")
+            st.subheader("Neural Network (ANN)")
+            ann_h1 = st.slider("hidden layer 1", 32, 256, 128, 16)
+            ann_h2 = st.slider("hidden layer 2", 16, 128, 64, 8)
+            ann_h3 = st.slider("hidden layer 3", 8, 64, 32, 8)
+            ann_max_iter = st.slider("max_iter", 100, 600, 400, 50)
+            ann_learning_rate_init = st.select_slider(
+                "learning_rate_init",
+                options=[0.0005, 0.001, 0.002, 0.005],
+                value=0.001,
+            )
 
     run = st.button("Train / Refresh", type="primary")
 
@@ -294,6 +426,15 @@ def main() -> None:
             rf_min_samples_leaf=rf_min_samples_leaf,
             rf_class_weight=rf_class_weight,
             rf_text_feature_cap=rf_text_feature_cap,
+            nb_alpha=nb_alpha,
+            knn_neighbors=knn_neighbors,
+            knn_weights=knn_weights,
+            svd_components=svd_components,
+            ann_h1=ann_h1,
+            ann_h2=ann_h2,
+            ann_h3=ann_h3,
+            ann_max_iter=ann_max_iter,
+            ann_learning_rate_init=ann_learning_rate_init,
         )
 
     st.success(f"Completed in {result.runtime_sec:.2f}s")

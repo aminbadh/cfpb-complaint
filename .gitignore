@@ -17,3 +17,9 @@ data/processed/*
 
 # Jupyter artifacts
 notebooks/.ipynb_checkpoints/
+
+# Generated report artifacts (keep final_report deliverables tracked)
+reports/*
+!reports/.gitkeep
+!reports/final_report/
+!reports/final_report/**

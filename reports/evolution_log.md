@@ -1,4 +1,0 @@
-| phase | issue_detected | decision_made | evidence_metric_before | evidence_metric_after | impact_on_business_use |
-| --- | --- | --- | --- | --- | --- |
-| Target/Evaluation v1 (baseline, default threshold) | Default threshold and narrow metric view produced weak minority-class behavior. | Expanded metrics and moved to threshold optimization. | LogReg @0.5: F1=0.0000, PR-AUC=0.1271, Kappa=0.0000 | LogReg tuned @0.1: F1=0.1925, PR-AUC=0.1271, Kappa=0.1793 | Higher recall improves capture of potential relief-eligible complaints. |
-| Model strategy v2 (final champion) | Single baseline model not robust enough for deployment-oriented ranking. | Compared all models under tuned thresholds and selected best F1 champion. | Best default-threshold model: KNN (k=5) (F1=0.0915) | Threshold champion: Random Forest @0.1 (F1=0.2993, Kappa=0.2842) | Champion aligns better with recall-sensitive screening decisions. |

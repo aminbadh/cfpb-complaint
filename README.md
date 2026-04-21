@@ -127,8 +127,8 @@ streamlit run app/streamlit_app.py
 ```
 
 The app retrains quickly on sampled data and lets you adjust:
-- model choice (Logistic Regression, Random Forest, Voting Ensemble),
-- key hyperparameters (for LR and RF),
+- model choice (Logistic Regression, Naive Bayes, KNN, Random Forest, Neural Network, Voting Ensemble),
+- model-specific hyperparameters (only shown for the selected model),
 - decision threshold with live confusion-matrix/metric updates.
 
 This is presentation-oriented and intentionally focused on model behavior exploration rather than production inference serving.
@@ -151,18 +151,15 @@ This is presentation-oriented and intentionally focused on model behavior explor
 5. **Meta-Learner**
    - Voting Classifier (soft vote average of 5 models)
 
-## Course Alignment Plan
+## Reports Tracking
 
-To align this repository with the newly added course reference documents and evaluation criteria, use:
+The `reports/` folder can contain many generated intermediate artifacts (tables, curves, confusion matrix exports) that are useful during iteration but noisy for version control.
 
-- `docs/alignment_plan.md`
+This project now keeps the final deliverables in version control under:
 
-It contains a concrete implementation checklist for metrics expansion, cross-validated tuning,
-ensemble strengthening, report restructuring, and live presentation readiness.
+- `reports/final_report/`
 
-For presentation storytelling (including mistakes, corrections, and evidence of improvement), use:
-
-- `docs/presentation_evolution.md`
+and ignores other generated report files in `reports/` by default via `.gitignore`.
 
 ## Quick Start
 

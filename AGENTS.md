@@ -5,9 +5,9 @@ This repository builds a binary classifier for CFPB complaints to predict moneta
 
 ## Read First
 - Project overview and setup: [README.md](README.md)
-- Implementation roadmap and required upgrades: [docs/alignment_plan.md](docs/alignment_plan.md)
-- Presentation storyline (mistakes -> corrections): [docs/presentation_evolution.md](docs/presentation_evolution.md)
 - Course requirements context: [docs/project_desc.md](docs/project_desc.md)
+- Evaluation rubric notes: [docs/evaluate.md](docs/evaluate.md)
+- Improvement notes: [docs/improve.md](docs/improve.md)
 
 ## Repository Map
 - Data loading and EDA only: [notebooks/01_data_loading_and_eda.ipynb](notebooks/01_data_loading_and_eda.ipynb)
@@ -42,7 +42,7 @@ This repository builds a binary classifier for CFPB complaints to predict moneta
   3. [notebooks/03_modeling.ipynb](notebooks/03_modeling.ipynb)
 
 ## Output Expectations
-When working on modeling updates, ensure artifacts requested in [docs/alignment_plan.md](docs/alignment_plan.md) are produced in [reports](reports), including detailed model comparison, threshold analysis, confusion-matrix summaries, and evolution tracking.
+When working on modeling updates, ensure key artifacts are produced in [reports](reports), including detailed model comparison, threshold analysis, confusion-matrix summaries, and evolution tracking.
 
 ## Common Pitfalls
 - Running full raw CSV operations can exceed local memory; use chunking/sampling first.

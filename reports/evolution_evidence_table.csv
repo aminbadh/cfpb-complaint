@@ -1,4 +1,0 @@
-model_version,model,threshold,f1,pr_auc,kappa,recall,precision
-Early baseline (LogReg default),Logistic Regression,0.5,0.0,0.1271271720391287,0.0,0.0,0.0
-Corrected baseline (LogReg tuned),Logistic Regression,0.1,0.19254658385093168,0.1271271720391287,0.17930788515256668,0.23134328358208955,0.16489361702127658
-Final champion (threshold-tuned),Random Forest,0.1,0.2992957746478873,0.21737877941899608,0.28418434172252616,0.6343283582089553,0.195852534562212
