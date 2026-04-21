@@ -1,8 +1,17 @@
+# Data handling and numerical computing
 pandas>=2.2
 numpy>=1.26
+
+# Machine learning and evaluation
 scikit-learn>=1.5
+
+# Visualization
 matplotlib>=3.9
 seaborn>=0.13
+
+# HTTP/data download utilities
 requests>=2.32
+
+# Notebook workflow
 jupyter>=1.0
 ipykernel>=6.29
