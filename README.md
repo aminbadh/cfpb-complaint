@@ -139,6 +139,19 @@ Implementation is intentionally deferred until preprocessing/modeling are finali
 5. **Meta-Learner**
    - Voting Classifier (soft vote average of 5 models)
 
+## Course Alignment Plan
+
+To align this repository with the newly added course reference documents and evaluation criteria, use:
+
+- `docs/alignment_plan.md`
+
+It contains a concrete implementation checklist for metrics expansion, cross-validated tuning,
+ensemble strengthening, report restructuring, and live presentation readiness.
+
+For presentation storytelling (including mistakes, corrections, and evidence of improvement), use:
+
+- `docs/presentation_evolution.md`
+
 ## Quick Start
 
 ### Run the Full Pipeline

@@ -17,9 +17,3 @@ data/processed/*
 
 # Jupyter artifacts
 notebooks/.ipynb_checkpoints/
-
-# Reports (track only final comparison tables)
-reports/*
-!reports/.gitkeep
-!reports/model_comparison.csv
-!reports/model_comparison_with_ensemble.csv
