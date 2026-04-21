@@ -39,6 +39,10 @@ header-includes:
 \vspace*{\fill}
 {\LARGE \textbf{Course Title}}\\[0.25cm]
 {\Large BA 360: Business Data Mining}\\
+
+\vspace*{\fill}
+{\Large \textbf{GitHub Repository}}\\[0.2cm]
+{\normalsize \url{https://github.com/aminbadh/cfpb-complaint}}\\
 \vspace*{\fill}
 \end{center}
 
@@ -236,57 +240,117 @@ The train/test split was stratified (80/20) to preserve class imbalance structur
 # Methods and Analysis
 
 ## Modeling Strategy
-Explain train/test setup and model comparison approach.
+Modeling was performed in `03_modeling.ipynb` using the leakage-safe outputs from preprocessing (`train_features.csv` and `test_features.csv`). The split was stratified 80/20 to preserve the rare-event target distribution. Because the positive class rate is around 1.39%, the analysis emphasized imbalance-aware evaluation rather than raw accuracy.
 
-## Models Implemented
-- Logistic Regression (TF-IDF)
-- Naive Bayes (TF-IDF)
-- KNN (SVD-reduced text)
-- Random Forest (structured + text)
-- MLP Neural Network
-- Voting Classifier Ensemble
+The workflow was:
 
-## Why These Methods
-Justify method choices for this problem.
+- load prepared train/test data,
+- build text features with TF-IDF on `narrative_clean`,
+- combine text and structured features when appropriate,
+- train multiple model families under a shared evaluation protocol,
+- compare both default-threshold and threshold-tuned performance,
+- select a practical champion based on F1, recall-precision tradeoff, and confusion-matrix behavior.
+
+## Models Implemented and Rationale
+The following models were implemented to cover complementary assumptions:
+
+- Logistic Regression (TF-IDF text baseline): strong linear baseline for sparse high-dimensional text and easy to interpret.
+- Naive Bayes (TF-IDF text baseline): classic probabilistic text classifier and fast benchmark.
+- KNN with TruncatedSVD text reduction: non-parametric neighborhood baseline after dimensionality reduction.
+- Random Forest (structured + text): captures non-linear interactions and mixed-feature effects.
+- MLP Neural Network (structured + text): flexible non-linear learner with early stopping.
+- Soft Voting Ensemble: combines probability outputs to test whether blending improves robustness.
+
+This model set is appropriate because it spans linear, probabilistic, local, tree-based, neural, and ensemble families while remaining computationally feasible on the sampled dataset.
+
+## Evaluation Protocol
+Each model was evaluated with:
+
+- PR-AUC and ROC-AUC,
+- Precision, Recall, F1,
+- Balanced Accuracy and Cohen's Kappa,
+- confusion-matrix counts (TN, FP, FN, TP).
+
+A threshold sweep (0.10 to 0.90) was then run for each model, and the best threshold per model was selected by F1. This is important in rare-event settings where a fixed 0.50 threshold often suppresses recall.
+
+## Methods Outputs
+Notebook 3 generated reproducible artifacts used in this section:
+
+- `reports/model_comparison_with_ensemble.csv`
+- `reports/threshold_analysis.csv`
+- `reports/model_comparison_detailed.csv`
+- `reports/confusion_matrices.csv`
+- `reports/top_model_curves.png`
+- `reports/top_model_confusion_matrices.png`
 
 # Results and Interpretation
 
-## Model Comparison
-Insert summary table from reports outputs.
+## Default vs Tuned Performance
+At the default threshold (0.50), most models produced near-zero recall because the task is highly imbalanced. After threshold tuning, performance improved substantially.
 
-![Model comparison table figure](assets/model_comparison.png)
+A concise view of the best tuned configurations is:
 
-## Threshold Analysis
-Discuss trade-offs and operational threshold recommendation.
+| Model | Threshold | PR-AUC | F1 | Precision | Recall | Kappa |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Random Forest | 0.10 | 0.2174 | 0.2993 | 0.1959 | 0.6343 | 0.2842 |
+| Voting Ensemble (5-model avg) | 0.10 | 0.2310 | 0.2991 | 0.2177 | 0.4776 | 0.2855 |
+| Neural Network (ANN) | 0.20 | 0.2223 | 0.2779 | 0.2000 | 0.4552 | 0.2638 |
 
-![Threshold analysis](assets/threshold_analysis.png)
+Interpretation:
 
-## Confusion Matrix Insights
-Interpret false positives and false negatives in business terms.
+- The highest F1 comes from Random Forest at threshold 0.10.
+- The highest PR-AUC comes from the Voting Ensemble, indicating strong ranking quality overall.
+- The final model choice depends on operational preference: higher recall capture (Random Forest) versus tighter precision with fewer alerts (Voting).
 
-![Confusion matrix](assets/confusion_matrix.png)
+![Project evolution evidence from baseline to tuned champion.](assets/evolution_evidence_plot.png)
+
+## Curve-Level Interpretation
+PR and ROC curves for top models show that all selected champions operate above no-skill baselines, but PR behavior is the most informative because positives are rare.
+
+- Random Forest provides stronger recall at its tuned operating point.
+- Voting Ensemble offers competitive F1 with a better precision profile.
+- Neural Network remains viable but trails the top two on F1/Kappa.
+
+![Top-model PR and ROC curves from threshold-tuned analysis.](assets/top_model_curves.png)
+
+## Confusion-Matrix Insights
+Using tuned thresholds:
+
+- Random Forest: TP=85, FN=49, FP=349, TN=9217.
+- Voting Ensemble: TP=64, FN=70, FP=230, TN=9336.
+
+Business interpretation:
+
+- Random Forest catches more true monetary-relief cases (higher recall) but triggers more false alerts.
+- Voting triggers fewer alerts with better precision, but misses more true positive cases.
+
+This is a classic triage tradeoff and should be aligned to operational cost preference (missed eligible cases vs review workload).
+
+![Confusion-matrix heatmaps for top tuned models.](assets/top_model_confusion_matrices.png)
 
 ## Key Findings
-Provide clear, practical conclusions.
+Main findings from Notebook 3 are:
+
+- Threshold tuning is essential; default 0.50 is not suitable for this rare-event task.
+- Random Forest is the strongest recall-oriented champion (F1=0.2993, Recall=0.6343).
+- Voting Ensemble is the strongest precision-oriented alternative (Precision=0.2177 with similar F1).
+- Accuracy remains high for all models due to class imbalance and is not the primary decision metric.
+
+Recommended operating policy for this project stage:
+
+- Use Random Forest at threshold 0.10 when the objective is to maximize capture of potential monetary-relief cases.
+- Use Voting Ensemble at threshold 0.10 when review capacity is constrained and precision is prioritized.
 
 # Conclusion
 
 ## Objective Recap
-Summarize initial objective.
+The project objective was to predict whether a CFPB complaint will end with monetary relief using only complaint-time information. We focused on a leakage-safe binary classification setup and prioritized practical triage usefulness under severe class imbalance, rather than headline accuracy.
 
 ## Methods Recap
-Summarize methods used.
+We prepared a supervised dataset with strict target eligibility rules, engineered text/temporal/structured features, and compared six model configurations in Notebook 3: Logistic Regression, Naive Bayes, KNN (SVD-reduced text), Random Forest, MLP Neural Network, and a soft-voting ensemble. Evaluation used PR-AUC, ROC-AUC, Precision, Recall, F1, Kappa, and confusion matrices. We then performed threshold tuning (0.10 to 0.90) to choose operationally useful settings.
 
 ## Main Results
-Summarize strongest findings and selected model.
+At the default threshold (0.50), minority-class detection was weak across most models. After threshold tuning, the strongest recall-oriented configuration was Random Forest at threshold 0.10 (F1=0.2993, Recall=0.6343, Precision=0.1959, Kappa=0.2842). The strongest precision-oriented alternative was Voting Ensemble at threshold 0.10 (F1=0.2991, Precision=0.2177, Recall=0.4776, Kappa=0.2855), with the highest PR-AUC overall (0.2310). These results confirm that threshold choice is as important as model family in this rare-event context.
 
 ## Business Insights
-Summarize actionable recommendations.
-
-# Appendix (Optional)
-
-## Evolution and Corrections
-Reference the mistakes-to-improvements timeline.
-
-## Additional Tables
-Add detailed model metrics if needed.
+For complaint triage, the recommended operating policy depends on review capacity and risk tolerance. If the primary goal is to capture as many potential monetary-relief cases as possible, Random Forest at 0.10 is preferred. If review capacity is constrained and false alerts must be reduced, Voting Ensemble at 0.10 is a strong alternative. In both cases, periodic threshold recalibration and ongoing monitoring of precision-recall tradeoffs are necessary as complaint patterns evolve.
