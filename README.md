@@ -92,15 +92,15 @@ python src/download_cfpb_data.py --download
 ```text
 cfpb-complaint/
   README.md
+  app/
+    streamlit_app.py
   data/
     raw/
     processed/
+  docs/
   notebooks/
-  src/
   reports/
-   # Planned (future):
-   # app/
-   #   streamlit_app.py
+  src/
 ```
 
 ## File Responsibilities (Single Source of Truth)
@@ -115,11 +115,23 @@ Boundary rule:
 - If a step changes labels/features used for training, it belongs in `02_preprocessing.ipynb`.
 - If a step is only descriptive/exploratory, it belongs in `01_data_loading_and_eda.ipynb`.
 
-## Planned Next Step (GUI)
+## Interactive Streamlit Demo
 
-A **Streamlit GUI** is planned for a later phase to test trained models live (single complaint prediction + batch testing), compare outputs, and present key metrics interactively.
+A lightweight Streamlit app is included to support in-class demonstration of model tuning and decision-threshold tradeoffs.
 
-Implementation is intentionally deferred until preprocessing/modeling are finalized.
+Run from the project root:
+
+```bash
+source .venv/bin/activate
+streamlit run app/streamlit_app.py
+```
+
+The app retrains quickly on sampled data and lets you adjust:
+- model choice (Logistic Regression, Random Forest, Voting Ensemble),
+- key hyperparameters (for LR and RF),
+- decision threshold with live confusion-matrix/metric updates.
+
+This is presentation-oriented and intentionally focused on model behavior exploration rather than production inference serving.
 
 ## Models Included
 
