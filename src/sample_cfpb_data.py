@@ -23,7 +23,7 @@ def find_csv(search_dir: Path) -> Path | None:
 def sample_csv_chunked(
     csv_path: Path,
     output_path: Path,
-    sample_size: int = 5000,
+    sample_size: int = 50000,
     chunksize: int = 10000,
 ) -> int:
     """Read CSV in chunks and save a random sample to output_path."""
@@ -35,6 +35,8 @@ def sample_csv_chunked(
     
     chunks = []
     row_count = 0
+    # Keep memory bounded while still reading enough rows for a good sample.
+    max_rows_to_read = max(sample_size * 2, 200000)
     
     # Read in chunks to avoid memory overload
     for chunk in pd.read_csv(csv_path, chunksize=chunksize, low_memory=False):
@@ -42,8 +44,8 @@ def sample_csv_chunked(
         row_count += len(chunk)
         print(f"  Read {row_count} rows so far...")
         
-        # Stop early if we've read enough chunks (safety limit)
-        if len(chunks) >= 20:  # 20 * 10000 = 200k rows, plenty for modeling
+        # Stop early once we reach the configurable safety limit.
+        if row_count >= max_rows_to_read:
             print(f"  Stopping at {row_count} rows (memory safety).")
             break
     
@@ -93,8 +95,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--sample-size",
         type=int,
-        default=5000,
-        help="Number of rows to sample (default 5000).",
+        default=50000,
+        help="Number of rows to sample (default 50000).",
     )
     parser.add_argument(
         "--chunksize",
