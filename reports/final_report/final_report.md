@@ -46,18 +46,42 @@ header-includes:
 # Dataset Description
 
 ## General Context
-Describe the business and regulatory context of CFPB complaints.
+The dataset comes from the U.S. Consumer Financial Protection Bureau (CFPB). It contains real consumer complaints about financial products and services (for example credit cards, loans, credit reporting, and debt collection). In business terms, this dataset helps identify where customer harm occurs and where monetary relief is more likely, which supports better risk monitoring and faster case prioritization.
 
 ## Data Source
-- Source: CFPB Consumer Complaint Database
-- Link: https://www.consumerfinance.gov/data-research/consumer-complaints/
-- File used in project: `data/processed/complaints_sample.csv`
+
+- Source: CFPB Consumer Complaint Database.
+- Official page: https://www.consumerfinance.gov/data-research/consumer-complaints/
+- Direct file used as full raw input in this project: data/raw/complaints.csv.
+- Because the full file is very large, we created and used a memory-safe working sample for modeling: data/processed/complaints_sample.csv.
+
+Local snapshot (as documented in the project README on 2026-04-20):
+
+- Full raw dataset size: 14,636,145 rows and 18 columns.
+- Uncompressed CSV size: about 8.0 GB.
+- Compressed download size (complaints.csv.zip): about 1.7 GB.
 
 ## Unit of Observation
-Explain what one row represents.
+One observation (one row) represents one consumer complaint submitted to the CFPB complaint system. Each row includes complaint metadata available at intake time (for example product, issue, submission channel, state, and dates), and in many cases a free-text complaint narrative.
+
+For this project, we defined a binary target from resolution information:
+
+- 1: complaint ended with monetary relief.
+- 0: complaint ended without monetary relief.
+
+To avoid leakage, post-resolution fields are not used as predictors at inference time.
 
 ## Main Variables
-Summarize key variables used in EDA and modeling.
+Main variables used in EDA and modeling include:
+
+- Text variable: consumer_complaint_narrative.
+- Product taxonomy: product and sub_product.
+- Problem taxonomy: issue and sub_issue.
+- Submission and geography: submitted_via and state.
+- Time variables: date_received (and derived temporal features).
+- Target construction fields: company_response_to_consumer (used to derive the label, then excluded from predictor set for leakage-safe modeling).
+
+Data handling note: because the full dataset in data/raw/complaints.csv is too large for efficient iterative experimentation on a local machine, we generated a representative sample (data/processed/complaints_sample.csv) and used that sample throughout preprocessing and model development.
 
 # Problem Statement
 
