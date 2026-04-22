@@ -8,6 +8,7 @@ scikit-learn>=1.5
 # Visualization
 matplotlib>=3.9
 seaborn>=0.13
+wordcloud>=1.9
 
 # HTTP/data download utilities
 requests>=2.32
