@@ -52,6 +52,7 @@ class ExperimentResult:
     test_rows: int
     positive_rate: float
     runtime_sec: float
+    preview_artifacts: dict
 
 
 @st.cache_data(show_spinner=False)
@@ -96,7 +97,7 @@ def evaluate_probs(y_true: np.ndarray, y_proba: np.ndarray, threshold: float) ->
     }
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def run_experiment(
     model_name: str,
     sample_frac: float,
@@ -158,15 +159,27 @@ def run_experiment(
             x_test_combined = np.hstack([x_test_struct_scaled, x_test_tfidf.toarray()[:, :text_cap]])
         return x_train_combined, x_test_combined
 
+    preview_artifacts = {
+        "model_name": model_name,
+        "feature_columns": x_train.columns.tolist(),
+        "tfidf": tfidf,
+        "scaler": scaler,
+        "svd": None,
+        "text_cap": text_cap,
+        "models": {},
+    }
+
     if model_name == "Logistic Regression":
         model = LogisticRegression(C=lr_c, class_weight=class_weight_lr, max_iter=1000, random_state=42)
         model.fit(x_train_tfidf, y_train)
         y_proba = model.predict_proba(x_test_tfidf)[:, 1]
+        preview_artifacts["models"]["lr"] = model
 
     elif model_name == "Naive Bayes":
         model = MultinomialNB(alpha=nb_alpha)
         model.fit(x_train_tfidf, y_train)
         y_proba = model.predict_proba(x_test_tfidf)[:, 1]
+        preview_artifacts["models"]["nb"] = model
 
     elif model_name == "KNN":
         max_svd = max(2, min(svd_components, x_train_tfidf.shape[1] - 1))
@@ -176,6 +189,8 @@ def run_experiment(
         model = KNeighborsClassifier(n_neighbors=knn_neighbors, weights=knn_weights, n_jobs=-1)
         model.fit(x_train_svd, y_train)
         y_proba = model.predict_proba(x_test_svd)[:, 1]
+        preview_artifacts["svd"] = svd
+        preview_artifacts["models"]["knn"] = model
 
     elif model_name == "Random Forest":
         x_train_combined, x_test_combined = get_combined_features()
@@ -190,6 +205,7 @@ def run_experiment(
         )
         model.fit(x_train_combined, y_train)
         y_proba = model.predict_proba(x_test_combined)[:, 1]
+        preview_artifacts["models"]["rf"] = model
 
     elif model_name == "Neural Network (ANN)":
         x_train_combined, x_test_combined = get_combined_features()
@@ -205,6 +221,7 @@ def run_experiment(
         )
         model.fit(x_train_combined, y_train)
         y_proba = model.predict_proba(x_test_combined)[:, 1]
+        preview_artifacts["models"]["ann"] = model
 
     else:
         # Voting Ensemble (5-model avg) to match notebook setup.
@@ -241,6 +258,14 @@ def run_experiment(
         knn.fit(x_train_svd, y_train)
         rf.fit(x_train_combined, y_train)
         ann.fit(x_train_combined, y_train)
+        preview_artifacts["svd"] = svd
+        preview_artifacts["models"] = {
+            "lr": lr,
+            "nb": nb,
+            "knn": knn,
+            "rf": rf,
+            "ann": ann,
+        }
 
         y_proba = (
             lr.predict_proba(x_test_tfidf)[:, 1]
@@ -271,6 +296,7 @@ def run_experiment(
         test_rows=len(test_df),
         positive_rate=float(np.mean(y_test)),
         runtime_sec=time.time() - start,
+        preview_artifacts=preview_artifacts,
     )
 
 
@@ -309,6 +335,111 @@ def plot_threshold_sweep(sweep_df: pd.DataFrame, selected_threshold: float):
     ax.grid(alpha=0.25)
     ax.legend()
     return fig
+
+
+def _category_values(feature_columns: list[str], prefix: str) -> list[str]:
+    values = [col[len(prefix) + 1 :] for col in feature_columns if col.startswith(f"{prefix}_")]
+    return sorted(values)
+
+
+def _build_live_row(
+    feature_columns: list[str],
+    narrative: str,
+    year_received: int,
+    month_received: int,
+    days_to_send: int,
+    product: str,
+    issue: str,
+    state: str,
+    submitted_via: str,
+) -> pd.DataFrame:
+    row = {col: 0 for col in feature_columns}
+    clean_narrative = " ".join(narrative.lower().split())
+    row["narrative_clean"] = clean_narrative
+
+    if "narrative_length" in row:
+        row["narrative_length"] = len(clean_narrative)
+    if "has_narrative" in row:
+        row["has_narrative"] = int(len(clean_narrative) > 0)
+    if "year_received" in row:
+        row["year_received"] = year_received
+    if "month_received" in row:
+        row["month_received"] = month_received
+    if "quarter_received" in row:
+        row["quarter_received"] = (month_received - 1) // 3 + 1
+    if "days_to_send" in row:
+        row["days_to_send"] = days_to_send
+
+    for prefix, value in [
+        ("Product", product),
+        ("Issue", issue),
+        ("State", state),
+        ("Submitted via", submitted_via),
+    ]:
+        column = f"{prefix}_{value}"
+        if column in row:
+            row[column] = 1
+
+    return pd.DataFrame([row], columns=feature_columns)
+
+
+def predict_live_probability(
+    preview_artifacts: dict,
+    narrative: str,
+    year_received: int,
+    month_received: int,
+    days_to_send: int,
+    product: str,
+    issue: str,
+    state: str,
+    submitted_via: str,
+) -> float:
+    feature_columns = preview_artifacts["feature_columns"]
+    model_name = preview_artifacts["model_name"]
+    tfidf = preview_artifacts["tfidf"]
+    scaler = preview_artifacts["scaler"]
+    svd = preview_artifacts["svd"]
+    text_cap = preview_artifacts["text_cap"]
+    models = preview_artifacts["models"]
+
+    x_live = _build_live_row(
+        feature_columns=feature_columns,
+        narrative=narrative,
+        year_received=year_received,
+        month_received=month_received,
+        days_to_send=days_to_send,
+        product=product,
+        issue=issue,
+        state=state,
+        submitted_via=submitted_via,
+    )
+    x_live_tfidf = tfidf.transform(x_live["narrative_clean"].fillna(""))
+    x_live_struct = x_live.drop(columns=["narrative_clean"])
+    x_live_struct_scaled = scaler.transform(x_live_struct)
+    x_live_combined = np.hstack([x_live_struct_scaled, x_live_tfidf.toarray()[:, :text_cap]])
+
+    if model_name == "Logistic Regression":
+        proba = models["lr"].predict_proba(x_live_tfidf)[:, 1][0]
+    elif model_name == "Naive Bayes":
+        proba = models["nb"].predict_proba(x_live_tfidf)[:, 1][0]
+    elif model_name == "KNN":
+        x_live_svd = svd.transform(x_live_tfidf)
+        proba = models["knn"].predict_proba(x_live_svd)[:, 1][0]
+    elif model_name == "Random Forest":
+        proba = models["rf"].predict_proba(x_live_combined)[:, 1][0]
+    elif model_name == "Neural Network (ANN)":
+        proba = models["ann"].predict_proba(x_live_combined)[:, 1][0]
+    else:
+        x_live_svd = svd.transform(x_live_tfidf)
+        proba = (
+            models["lr"].predict_proba(x_live_tfidf)[:, 1][0]
+            + models["nb"].predict_proba(x_live_tfidf)[:, 1][0]
+            + models["knn"].predict_proba(x_live_svd)[:, 1][0]
+            + models["rf"].predict_proba(x_live_combined)[:, 1][0]
+            + models["ann"].predict_proba(x_live_combined)[:, 1][0]
+        ) / 5.0
+
+    return float(proba)
 
 
 def main() -> None:
@@ -408,34 +539,38 @@ def main() -> None:
         st.session_state.auto_ran = True
         run = True
 
-    if not run:
-        st.info("Change controls and click 'Train / Refresh'.")
+    if run:
+        with st.spinner("Training model and computing metrics..."):
+            result = run_experiment(
+                model_name=model_name,
+                sample_frac=sample_frac,
+                random_state=int(random_state),
+                threshold=threshold,
+                tfidf_max_features=tfidf_max_features,
+                lr_c=lr_c,
+                lr_class_weight=lr_class_weight,
+                rf_n_estimators=rf_n_estimators,
+                rf_max_depth=rf_max_depth,
+                rf_min_samples_leaf=rf_min_samples_leaf,
+                rf_class_weight=rf_class_weight,
+                rf_text_feature_cap=rf_text_feature_cap,
+                nb_alpha=nb_alpha,
+                knn_neighbors=knn_neighbors,
+                knn_weights=knn_weights,
+                svd_components=svd_components,
+                ann_h1=ann_h1,
+                ann_h2=ann_h2,
+                ann_h3=ann_h3,
+                ann_max_iter=ann_max_iter,
+                ann_learning_rate_init=ann_learning_rate_init,
+            )
+        st.session_state["latest_result"] = result
+
+    if "latest_result" not in st.session_state:
+        st.info("Set parameters and click 'Train / Refresh' to run the model.")
         return
 
-    with st.spinner("Training model and computing metrics..."):
-        result = run_experiment(
-            model_name=model_name,
-            sample_frac=sample_frac,
-            random_state=int(random_state),
-            threshold=threshold,
-            tfidf_max_features=tfidf_max_features,
-            lr_c=lr_c,
-            lr_class_weight=lr_class_weight,
-            rf_n_estimators=rf_n_estimators,
-            rf_max_depth=rf_max_depth,
-            rf_min_samples_leaf=rf_min_samples_leaf,
-            rf_class_weight=rf_class_weight,
-            rf_text_feature_cap=rf_text_feature_cap,
-            nb_alpha=nb_alpha,
-            knn_neighbors=knn_neighbors,
-            knn_weights=knn_weights,
-            svd_components=svd_components,
-            ann_h1=ann_h1,
-            ann_h2=ann_h2,
-            ann_h3=ann_h3,
-            ann_max_iter=ann_max_iter,
-            ann_learning_rate_init=ann_learning_rate_init,
-        )
+    result = st.session_state["latest_result"]
 
     st.success(f"Completed in {result.runtime_sec:.2f}s")
 
@@ -476,6 +611,65 @@ def main() -> None:
         "TP",
     ]
     st.dataframe(result.sweep_df[view_cols].round(4), width="stretch")
+
+    st.subheader("Live Prediction Preview")
+    st.caption(
+        "Quick class demo: enter a complaint-like profile and score it with the currently selected model."
+    )
+
+    preview = result.preview_artifacts
+    feature_cols = preview["feature_columns"]
+    product_options = _category_values(feature_cols, "Product")
+    issue_options = _category_values(feature_cols, "Issue")
+    state_options = _category_values(feature_cols, "State")
+    submitted_options = _category_values(feature_cols, "Submitted via")
+
+    with st.form("live_preview_form"):
+        narrative = st.text_area(
+            "Complaint narrative (free text)",
+            value="I keep being charged fees I do not understand and customer support is not helping.",
+            height=120,
+        )
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            year_received = st.number_input("year_received", min_value=2011, max_value=2035, value=2024, step=1)
+        with c2:
+            month_received = st.number_input("month_received", min_value=1, max_value=12, value=6, step=1)
+        with c3:
+            days_to_send = st.number_input("days_to_send", min_value=0, max_value=120, value=3, step=1)
+
+        c4, c5 = st.columns(2)
+        with c4:
+            product = st.selectbox("Product", product_options, index=0)
+            state = st.selectbox("State", state_options, index=0)
+        with c5:
+            issue = st.selectbox("Issue", issue_options, index=0)
+            submitted_via = st.selectbox(
+                "Submitted via",
+                submitted_options,
+                index=0,
+            )
+
+        predict_clicked = st.form_submit_button("Predict Preview Case")
+
+    if predict_clicked:
+        live_proba = predict_live_probability(
+            preview_artifacts=preview,
+            narrative=narrative,
+            year_received=int(year_received),
+            month_received=int(month_received),
+            days_to_send=int(days_to_send),
+            product=product,
+            issue=issue,
+            state=state,
+            submitted_via=submitted_via,
+        )
+        live_class = int(live_proba >= result.threshold)
+
+        p1, p2, p3 = st.columns(3)
+        p1.metric("Predicted Probability (Monetary Relief)", f"{live_proba:.4f}")
+        p2.metric("Current Threshold", f"{result.threshold:.2f}")
+        p3.metric("Predicted Class", "1 (Likely Relief)" if live_class == 1 else "0 (No Relief)")
 
 
 if __name__ == "__main__":
