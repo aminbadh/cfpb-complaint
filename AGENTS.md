@@ -13,15 +13,22 @@ This repository builds a binary classifier for CFPB complaints to predict moneta
 - Data loading and EDA only: [notebooks/01_data_loading_and_eda.ipynb](notebooks/01_data_loading_and_eda.ipynb)
 - Authoritative preprocessing and target construction: [notebooks/02_preprocessing.ipynb](notebooks/02_preprocessing.ipynb)
 - Model training, comparison, and ensembles: [notebooks/03_modeling.ipynb](notebooks/03_modeling.ipynb)
+- Shared target-label policy helpers: [src/label_policy.py](src/label_policy.py)
 - Raw data download helper: [src/download_cfpb_data.py](src/download_cfpb_data.py)
 - Memory-safe sampling helper: [src/sample_cfpb_data.py](src/sample_cfpb_data.py)
+- Interactive demo for threshold/model exploration: [app/streamlit_app.py](app/streamlit_app.py)
 - Model outputs and report artifacts: [reports](reports)
+- Final written report workspace: [reports/final_report](reports/final_report)
 
 ## Working Conventions
 - Respect notebook boundaries:
   - Label/feature definition changes belong in [notebooks/02_preprocessing.ipynb](notebooks/02_preprocessing.ipynb)
   - Descriptive analysis belongs in [notebooks/01_data_loading_and_eda.ipynb](notebooks/01_data_loading_and_eda.ipynb)
   - Modeling and metrics changes belong in [notebooks/03_modeling.ipynb](notebooks/03_modeling.ipynb)
+- Keep shared policy logic centralized:
+  - If the monetary-relief response mapping changes, update [src/label_policy.py](src/label_policy.py) and keep notebook usage aligned with it.
+- Treat the Streamlit app as presentation/demo code:
+  - Changes to interactive tuning, threshold exploration, or classroom demo behavior belong in [app/streamlit_app.py](app/streamlit_app.py)
 - Keep leakage-safe modeling: do not use post-resolution fields as predictors at inference time.
 - Prioritize functionality changes over style-only edits.
 - Prefer minimal, targeted edits; do not reformat unrelated cells/files.
@@ -43,6 +50,11 @@ This repository builds a binary classifier for CFPB complaints to predict moneta
 
 ## Output Expectations
 When working on modeling updates, ensure key artifacts are produced in [reports](reports), including detailed model comparison, threshold analysis, confusion-matrix summaries, and evolution tracking.
+
+When working on the final written deliverable, keep source/report assets under [reports/final_report](reports/final_report), where:
+- `final_report.md` is the report source
+- `assets/` contains figures used by the report
+- `final_report.pdf` is the exported deliverable when regenerated
 
 ## Common Pitfalls
 - Running full raw CSV operations can exceed local memory; use chunking/sampling first.
