@@ -2,6 +2,8 @@
 
 This folder is the working area for our NLP + multi-model business data mining project.
 
+Read the final report: [reports/final_report/final_report.pdf](reports/final_report/final_report.pdf)
+
 ## Development Note
 AI coding agents were used during development to help draft, revise, and organize parts of this project. In particular, the repository's `AGENTS.md` file was used to provide project-specific context and task instructions so updates could be made with clearer constraints and expectations. All generated or assisted changes were reviewed after creation before being kept in the project.
 
