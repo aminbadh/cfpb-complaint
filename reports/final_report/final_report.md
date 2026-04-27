@@ -28,7 +28,7 @@ header-includes:
 
 \vspace*{\fill}
 {\LARGE \textbf{Title}}\\[0.25cm]
-{\Large CFPB Consumer Complaints: Predicting Monetary Relief Outcomes from Complaint-Time Information}\\
+{\Large Predicting Monetary Relief in CFPB Complaints}\\
 
 \vspace*{\fill}
 {\LARGE \textbf{Names}}\\[0.25cm]
@@ -64,7 +64,7 @@ The dataset comes from the U.S. Consumer Financial Protection Bureau (CFPB). It 
 - Full raw input can be downloaded via the project helper and stored under `data/raw/` when needed for large-scale runs.
 - Because the full file is very large, we created and used a memory-safe working sample for modeling: data/processed/complaints_sample.csv.
 
-Local snapshot (as documented in the project README on 2026-04-20):
+Local snapshot (as documented in the project README):
 
 - Full raw dataset size: 14,636,145 rows and 18 columns.
 - Uncompressed CSV size: about 8.0 GB.
@@ -354,3 +354,6 @@ At the default threshold (0.50), minority-class detection was weak across most m
 
 ## Business Insights
 For complaint triage, the recommended operating policy depends on review capacity and risk tolerance. If the primary goal is to capture as many potential monetary-relief cases as possible, Random Forest at 0.10 is preferred. If review capacity is constrained and false alerts must be reduced, Voting Ensemble at 0.10 is a strong alternative. In both cases, periodic threshold recalibration and ongoing monitoring of precision-recall tradeoffs are necessary as complaint patterns evolve.
+
+## AI Tool Disclosure
+GitHub Copilot was used as an agentic coding assistant to help draft, revise, and organize parts of the report and notebook code. All AI-assisted outputs were reviewed and edited by the project authors before inclusion, and the final analysis and conclusions reflect human oversight and approval.
