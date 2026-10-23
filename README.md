@@ -108,7 +108,7 @@ cfpb-complaint/
   src/
 ```
 
-## File Responsibilities (Single Source of Truth)
+## File Responsibilities (Single Source of Truth).
 
 - `notebooks/01_data_loading_and_eda.ipynb`: Data loading, quality checks, schema review, and exploratory visuals only.
 - `notebooks/02_preprocessing.ipynb`: Authoritative target construction and leakage-safe feature engineering.
